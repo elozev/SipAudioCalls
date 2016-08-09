@@ -122,7 +122,14 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     @Override
     protected void onDestroy() {
         closeLocalProfile();
+        this.unregisterReceiver(mCallReceiver);
         super.onDestroy();
+    }
+
+    @Override
+    protected void onStart() {
+        initializeManager();
+        super.onStart();
     }
 
     private void closeLocalProfile() {
@@ -139,6 +146,48 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     }
 
     private void initializeProfile(String username, String password, String domain, String outboundProxy, String authName) {
+
+        SipRegistrationListener listener = new SipRegistrationListener() {
+            @Override
+            public void onRegistering(String s) {
+                final String regS = s;
+                runOnUiThread(new Runnable() {
+                    @Override
+                    public void run() {
+                        setTVStatus("Registering with the server ... ( " + regS + " )");
+                    }
+                });
+                Log.d(LOG_TAG, "onRegistering");
+            }
+
+            @Override
+            public void onRegistrationDone(String s, long l) {
+                final String regS = s;
+                runOnUiThread(new Runnable() {
+                    @Override
+                    public void run() {
+                        setTVStatus("Ready! ( " + regS + " )");
+                    }
+                });
+                Log.d(LOG_TAG, "onRegistrationDone");
+            }
+
+            @Override
+            public void onRegistrationFailed(String s, int i, String s1) {
+                final String regS = s;
+                final int failI = i;
+                final String errS = s1;
+                runOnUiThread(new Runnable() {
+                    @Override
+                    public void run() {
+                        setTVStatus("Failed to register! (localProfile: " + regS
+                                + "; errorCode: " + failI + "; errorMessage: " + errS);
+                    }
+                });
+                Log.d(LOG_TAG, "onRegistrationFailed");
+            }
+        };
+
         try {
             SipProfile.Builder builder = new SipProfile.Builder(username, domain);
             builder.setPassword(password);
@@ -153,127 +202,24 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 
             Intent intent = new Intent();
             intent.setAction("android.SipDemo.INCOMING_CALL");
-
             PendingIntent pendingIntent = PendingIntent.getBroadcast(this, 0, intent, Intent.FILL_IN_DATA);
-            mSipManager.open(mSipProfile, pendingIntent, null);
-
-            SipRegistrationListener listener = new SipRegistrationListener() {
-                @Override
-                public void onRegistering(String s) {
-                    final String regS = s;
-                    runOnUiThread(new Runnable() {
-                        @Override
-                        public void run() {
-                            setTVStatus("Registering with the server ... ( " + regS + " )");
-                        }
-                    });
-                    Log.d(LOG_TAG, "onRegistering");
-                }
-
-                @Override
-                public void onRegistrationDone(String s, long l) {
-                    final String regS = s;
-                    runOnUiThread(new Runnable() {
-                        @Override
-                        public void run() {
-                            setTVStatus("Ready! ( " + regS + " )");
-                        }
-                    });
-                    Log.d(LOG_TAG, "onRegistrationDone");
-                }
-
-                @Override
-                public void onRegistrationFailed(String s, int i, String s1) {
-                    final String regS = s;
-                    final int failI = i;
-                    final String errS = s1;
-                    runOnUiThread(new Runnable() {
-                        @Override
-                        public void run() {
-                            setTVStatus("Failed to register! (localProfile: " + regS
-                                    + "; errorCode: " + failI + "; errorMessage: " + errS);
-                        }
-                    });
-                    Log.d(LOG_TAG, "onRegistrationFailed");
-                }
-            };
-            mSipManager.setRegistrationListener(mSipProfile.getUriString(), listener);
-
+            mSipManager.open(mSipProfile, pendingIntent, listener);
         } catch (ParseException e) {
             e.printStackTrace();
         } catch (SipException e) {
             e.printStackTrace();
         }
-
-        SipProfile peerProfile = null;
-        try {
-            SipProfile.Builder builder = new SipProfile.Builder(mSipAddress.getText().toString());
-            peerProfile = builder.build();
-        } catch (ParseException e) {
-            e.printStackTrace();
-        }
-
 
         Intent intent = new Intent();
         intent.setAction("android.SipDemo.INCOMING_CALL");
         PendingIntent pendingIntent = PendingIntent.getBroadcast(this, 0, intent, Intent.FILL_IN_DATA);
         try {
-            mSipManager.open(mSipProfile, pendingIntent, null);
-//            mSipManager.makeAudioCall(mSipProfile, peerProfile,mListener, 30);
-//            mSipManager.takeAudioCall(pendingIntent, mListener);
+            mSipManager.open(mSipProfile, pendingIntent, listener);
         } catch (SipException e) {
             e.printStackTrace();
         }
 
 
-    }
-
-    private void startIntent() {
-
-        IntentFilter filter = new IntentFilter();
-        filter.addAction("android.SipDemo.INCOMING_CALL");
-
-        mCallReceiver = new IncomingCallReceiver();
-        this.registerReceiver(mCallReceiver, filter);
-
-
-//        Intent intent = new Intent();
-//        intent.setAction("android.SipDemo.INCOMING_CALL");
-//        PendingIntent pendingIntent = PendingIntent.getBroadcast(this, 0, intent, Intent.FILL_IN_DATA);
-
-        //TODO: The Listener
-//        try {
-//            mSipManager.open(mSipProfile, pendingIntent, );
-//        } catch (SipException e) {
-//            e.printStackTrace();
-//        }
-
-        Thread thread = new Thread(new Runnable() {
-            @Override
-            public void run() {
-                if (ContextCompat.checkSelfPermission(MainActivity.this,
-                        Manifest.permission.USE_SIP)
-                        != PackageManager.PERMISSION_GRANTED) {
-
-                    // Should we show an explanation?
-                    if (ActivityCompat.shouldShowRequestPermissionRationale(MainActivity.this,
-                            Manifest.permission.USE_SIP)) {
-                        Toast.makeText(MainActivity.this, "Permission needed", Toast.LENGTH_LONG).show();
-                    } else {
-                        ActivityCompat.requestPermissions(MainActivity.this,
-                                new String[]{Manifest.permission.USE_SIP},
-                                123);
-
-                    }
-                }
-            }
-        });
-        thread.start();
-        try {
-            thread.join();
-        } catch (InterruptedException e) {
-            e.printStackTrace();
-        }
     }
 
     @Override
@@ -293,43 +239,6 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 
         }
     }
-
-    SipAudioCall.Listener mListener = new SipAudioCall.Listener() {
-        @Override
-        public void onReadyToCall(SipAudioCall call) {
-            Log.d(LOG_TAG, "SipAudioCall.Listener onReadyToCall: " + call);
-            super.onReadyToCall(call);
-        }
-
-        @Override
-        public void onCallEstablished(SipAudioCall call) {
-            Log.d(LOG_TAG, "SipAudioCall.Listener onCallEstablished: " + call);
-            mAudioCall = call;
-            mAudioCall.startAudio();
-            call.startAudio();
-
-            super.onCallEstablished(call);
-        }
-
-        @Override
-        public void onCalling(SipAudioCall call) {
-            Log.d(LOG_TAG, "SipAudioCall.Listener onCalling: " + call);
-            super.onCalling(call);
-        }
-
-        @Override
-        public void onRinging(SipAudioCall call, SipProfile caller) {
-            Log.d(LOG_TAG, "SipAudioCall.Listener onRinging: " + call);
-            setTVStatus("Caller: " + caller.getUserName() + " : is calling you!");
-            super.onRinging(call, caller);
-        }
-
-        @Override
-        public void onError(SipAudioCall call, int errorCode, String errorMessage) {
-            Log.d(LOG_TAG, "SipAudioCall.Listener onError: " + call + " errorCode: " + errorCode + " errorMessage: " + errorMessage);
-            super.onError(call, errorCode, errorMessage);
-        }
-    };
 
     private void initializeManager() {
         if (mSipManager == null) {
@@ -364,13 +273,13 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                 SharedPreferences.Editor editor1 = mSharedPreferences.edit();
                 editor1.putString("sip_address", mSipAddress.getText().toString());
                 editor1.apply();
-
-                toaster("Answer");
+                toaster("Answer: " + mSipAddress.getText().toString());
                 makeCall();
                 break;
 
             case R.id.end_btn:
                 mChronometer.stop();
+                mChronometer = (Chronometer) findViewById(R.id.chronometer_view);
                 if (mAudioCall != null) {
                     try {
                         mAudioCall.endCall();
@@ -400,7 +309,11 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 
                     editor.apply();
 
-                    initializeProfile(mETUsername.getText().toString(), mETPassword.getText().toString(), mETDomain.getText().toString(), proxy, auth);
+                    initializeProfile(mETUsername.getText().toString(),
+                            mETPassword.getText().toString(),
+                            mETDomain.getText().toString(),
+                            proxy,
+                            auth);
                     toaster("initializing");
 
                     toaster(mSipProfile.getUriString());
@@ -408,16 +321,92 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                 } else {
                     toaster("Fill all the fields");
                 }
-
                 break;
         }
     }
 
     private void makeCall() {
-        if (!mSipAddress.getText().toString().equals(""))
+        if (!mSipAddress.getText().toString().equals("")) {
             try {
-                mAudioCall = mSipManager.makeAudioCall(mSipProfile.getUriString(), mSipAddress.getText().toString(), mListener, 30);
+                final SipAudioCall.Listener listener = new SipAudioCall.Listener() {
+
+                    @Override
+                    public void onReadyToCall(SipAudioCall call) {
+                        Log.d(LOG_TAG, "Call.java  onReadyToCall: " + call);
+                    }
+
+                    @Override
+                    public void onRingingBack(SipAudioCall call) {
+                        Log.d(LOG_TAG, "Call.java  onRingingBack: " + call);
+                    }
+
+                    @Override
+                    public void onCallBusy(SipAudioCall call) {
+                        Log.d(LOG_TAG, "Call.java  onCallBusy: " + call);
+                    }
+
+                    @Override
+                    public void onCallHeld(SipAudioCall call) {
+                        Log.d(LOG_TAG, "Call.java  onCallHeld: " + call);
+                    }
+
+                    @Override
+                    public void onChanged(SipAudioCall call) {
+                        Log.d(LOG_TAG, "Call.java  onChanged: " + call);
+                    }
+
+                    @Override
+                    public void onCallEstablished(SipAudioCall call) {
+                        call.startAudio();
+                        mAudioCall.startAudio();
+
+                        if (mAudioCall.isMuted()) {
+                            mAudioCall.toggleMute();
+                        }
+                        if (call.isMuted()) {
+                            call.toggleMute();
+                        }
+                        Log.d(LOG_TAG, "Call.java onCallEstablished(): ");
+                    }
+
+                    @Override
+                    public void onRinging(SipAudioCall call, SipProfile caller) {
+//                        try {
+//                            call.answerCall(30);
+//                        } catch (SipException e) {
+//                            e.printStackTrace();
+//                       }
+                        Log.d(LOG_TAG, "Call.java onRinging(): ");
+                    }
+
+                    @Override
+                    public void onCalling(SipAudioCall call) {
+                        Toast.makeText(MainActivity.this, "Calling", Toast.LENGTH_LONG).show();
+                        Log.d(LOG_TAG, "Call.java onRinging(): ");
+                    }
+
+                    @Override
+                    public void onCallEnded(SipAudioCall call) {
+                        Log.d(LOG_TAG, "Call.java onCallEnded(): ");
+                    }
+
+                    @Override
+                    public void onError(SipAudioCall call, int errorCode, String errorMessage) {
+                        Log.d(LOG_TAG, "Call.java onError: errorCode: " + errorCode + "; errorMessage: " + errorMessage);
+                        setTVStatus("Call.java onError: errorCode: " + errorCode + "; errorMessage: " + errorMessage);
+                    }
+                };
+
+                String mPeerSd = mSipAddress.getText().toString();
+                toaster("User to call: " + mPeerSd);
+
+                mAudioCall = mSipManager.makeAudioCall(mSipProfile.getUriString(), mPeerSd, listener, 30);
                 mAudioCall.startAudio();
+                if (mAudioCall.isMuted()) {
+                    mAudioCall.toggleMute();
+                }
+
+
                 mChronometer.start();
                 if (mAudioCall.isInCall()) {
                     toaster("in call");
@@ -425,8 +414,9 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
             } catch (SipException e) {
                 e.printStackTrace();
             }
-        else
+        } else {
             toaster("Fill who to call");
+        }
     }
 
     @Override

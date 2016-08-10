@@ -1,6 +1,5 @@
 package com.emillozev.sipaudiocalls;
 
-import android.Manifest;
 import android.app.PendingIntent;
 import android.content.Intent;
 import android.content.IntentFilter;
@@ -13,8 +12,6 @@ import android.net.sip.SipProfile;
 import android.net.sip.SipRegistrationListener;
 import android.os.Bundle;
 import android.support.annotation.NonNull;
-import android.support.v4.app.ActivityCompat;
-import android.support.v4.content.ContextCompat;
 import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.Toolbar;
 import android.util.Log;
@@ -327,92 +324,99 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 
     private void makeCall() {
         if (!mSipAddress.getText().toString().equals("")) {
+            final SipAudioCall.Listener listener = new SipAudioCall.Listener() {
+
+                @Override
+                public void onReadyToCall(SipAudioCall call) {
+                    Log.d(LOG_TAG, "Call.java  onReadyToCall: " + call);
+                }
+
+                @Override
+                public void onRingingBack(SipAudioCall call) {
+                    Log.d(LOG_TAG, "Call.java  onRingingBack: " + call);
+                }
+
+                @Override
+                public void onCallBusy(SipAudioCall call) {
+                    Log.d(LOG_TAG, "Call.java  onCallBusy: " + call);
+                }
+
+                @Override
+                public void onCallHeld(SipAudioCall call) {
+                    Log.d(LOG_TAG, "Call.java  onCallHeld: " + call);
+                }
+
+                @Override
+                public void onChanged(SipAudioCall call) {
+                    Log.d(LOG_TAG, "Call.java  onChanged: " + call);
+                }
+
+                @Override
+                public void onCallEstablished(SipAudioCall call) {
+                    call.startAudio();
+                    mAudioCall.startAudio();
+
+                    if (mAudioCall.isMuted()) {
+                        mAudioCall.toggleMute();
+                    }
+                    if (call.isMuted()) {
+                        call.toggleMute();
+                    }
+                    Log.d(LOG_TAG, "Call.java onCallEstablished(): ");
+                }
+
+                @Override
+                public void onRinging(SipAudioCall call, SipProfile caller) {
+                    Log.d(LOG_TAG, "Call.java onRinging(): ");
+                }
+
+                @Override
+                public void onCalling(SipAudioCall call) {
+                    Toast.makeText(MainActivity.this, "Calling", Toast.LENGTH_LONG).show();
+                    Log.d(LOG_TAG, "Call.java onRinging(): ");
+                }
+
+                @Override
+                public void onCallEnded(SipAudioCall call) {
+                    Log.d(LOG_TAG, "Call.java onCallEnded(): ");
+                }
+
+                @Override
+                public void onError(SipAudioCall call, int errorCode, String errorMessage) {
+                    Log.d(LOG_TAG, "Call.java onError: errorCode: " + errorCode + "; errorMessage: " + errorMessage);
+                    setTVStatus("Call.java onError: errorCode: " + errorCode + "; errorMessage: " + errorMessage);
+                }
+            };
+
+            final String mPeerSd = mSipAddress.getText().toString();
+            toaster("User to call: " + mPeerSd);
+
+            Object lock = new Object();
+
+            synchronized (lock){
+                try {
+                    mAudioCall = mSipManager.makeAudioCall(mSipProfile.getUriString(), mPeerSd, listener, 30);
+                } catch (SipException e) {
+                    e.printStackTrace();
+                }
+            }
+
             try {
-                final SipAudioCall.Listener listener = new SipAudioCall.Listener() {
-
-                    @Override
-                    public void onReadyToCall(SipAudioCall call) {
-                        Log.d(LOG_TAG, "Call.java  onReadyToCall: " + call);
-                    }
-
-                    @Override
-                    public void onRingingBack(SipAudioCall call) {
-                        Log.d(LOG_TAG, "Call.java  onRingingBack: " + call);
-                    }
-
-                    @Override
-                    public void onCallBusy(SipAudioCall call) {
-                        Log.d(LOG_TAG, "Call.java  onCallBusy: " + call);
-                    }
-
-                    @Override
-                    public void onCallHeld(SipAudioCall call) {
-                        Log.d(LOG_TAG, "Call.java  onCallHeld: " + call);
-                    }
-
-                    @Override
-                    public void onChanged(SipAudioCall call) {
-                        Log.d(LOG_TAG, "Call.java  onChanged: " + call);
-                    }
-
-                    @Override
-                    public void onCallEstablished(SipAudioCall call) {
-                        call.startAudio();
-                        mAudioCall.startAudio();
-
-                        if (mAudioCall.isMuted()) {
-                            mAudioCall.toggleMute();
-                        }
-                        if (call.isMuted()) {
-                            call.toggleMute();
-                        }
-                        Log.d(LOG_TAG, "Call.java onCallEstablished(): ");
-                    }
-
-                    @Override
-                    public void onRinging(SipAudioCall call, SipProfile caller) {
-//                        try {
-//                            call.answerCall(30);
-//                        } catch (SipException e) {
-//                            e.printStackTrace();
-//                       }
-                        Log.d(LOG_TAG, "Call.java onRinging(): ");
-                    }
-
-                    @Override
-                    public void onCalling(SipAudioCall call) {
-                        Toast.makeText(MainActivity.this, "Calling", Toast.LENGTH_LONG).show();
-                        Log.d(LOG_TAG, "Call.java onRinging(): ");
-                    }
-
-                    @Override
-                    public void onCallEnded(SipAudioCall call) {
-                        Log.d(LOG_TAG, "Call.java onCallEnded(): ");
-                    }
-
-                    @Override
-                    public void onError(SipAudioCall call, int errorCode, String errorMessage) {
-                        Log.d(LOG_TAG, "Call.java onError: errorCode: " + errorCode + "; errorMessage: " + errorMessage);
-                        setTVStatus("Call.java onError: errorCode: " + errorCode + "; errorMessage: " + errorMessage);
-                    }
-                };
-
-                String mPeerSd = mSipAddress.getText().toString();
-                toaster("User to call: " + mPeerSd);
-
-                mAudioCall = mSipManager.makeAudioCall(mSipProfile.getUriString(), mPeerSd, listener, 30);
-                mAudioCall.startAudio();
-                if (mAudioCall.isMuted()) {
-                    mAudioCall.toggleMute();
-                }
-
-
-                mChronometer.start();
-                if (mAudioCall.isInCall()) {
-                    toaster("in call");
-                }
-            } catch (SipException e) {
+                Thread.sleep(5000);
+            } catch (InterruptedException e) {
                 e.printStackTrace();
+            }
+
+
+            mAudioCall.startAudio();
+            if (mAudioCall.isMuted()) {
+                mAudioCall.toggleMute();
+            }
+
+
+            mChronometer.start();
+            if (mAudioCall.isInCall()) {
+                toaster("in call");
             }
         } else {
             toaster("Fill who to call");

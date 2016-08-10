@@ -11,6 +11,7 @@ import android.util.Log;
 public class IncomingCallReceiver extends BroadcastReceiver {
 
     private String mCallerUriString;
+    private String mCallerId;
 
     @Override
     public void onReceive(final Context context, Intent intent) {
@@ -40,7 +41,7 @@ public class IncomingCallReceiver extends BroadcastReceiver {
                     } catch (SipException e) {
                         e.printStackTrace();
                     }
-
+                    mCallerId = caller.getProfileName();
                     mCallerUriString = caller.getUriString();
                     activity.setCallerID(mCallerUriString + " is ringing");
                     super.onRinging(call, caller);
@@ -59,7 +60,7 @@ public class IncomingCallReceiver extends BroadcastReceiver {
                     if (call.isMuted()) {
                         call.toggleMute();
                     }
-                    activity.setCallerID("You are talking to: " + mCallerUriString);
+                    activity.setCallerID("You are talking to: " + mCallerId);
                     super.onCallEstablished(call);
                 }
 

@@ -113,7 +113,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     }
 
     public void setCallerID(String text) {
-        mCallerID.setText(text);
+        mCallerID.setText("Call: " + text);
     }
 
     @Override
@@ -406,7 +406,6 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
             } catch (InterruptedException e) {
                 e.printStackTrace();
             }
-
 
             mAudioCall.startAudio();
             if (mAudioCall.isMuted()) {
